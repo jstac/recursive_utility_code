@@ -1,41 +1,11 @@
 #=
 
-Code for the Bansal-Yaron and BKY growth paths.  The growth process for
-consumption is
-
-    ln (C' / C) = μ + z - σ η'
-
-where X = (z, σ) is generated via a SV process and {η} is iid N(0, 1).
-
-The default value for μ is 0.0015.
+Code for the Bansal-Yaron and BKY stability and dynamics.
 
 =#
 
-include("stochastic_volatility.jl")
-
-
-
-# SV specifications correspoinding to BY and BKY
-
-function StochasticVolatilityBY(; ρ=0.979, 
-                                  s_z=0.044,     # ϕ_x in PSW
-                                  v=0.987,       # ν (nu) in PSW, vee here
-                                  σ_bar=0.0078,  # same in PSW
-                                  s_σ=2.3e-6)    # ϕ_σ in PSW
-
-    d = σ_bar^2 * (1 - v)
-    return StochasticVolatility(ρ, s_z, v, d, s_σ)
-end
-
-
-function StochasticVolatilityBKY(; ρ=0.975, 
-                                   s_z=0.038,     # ϕ_x in PSW
-                                   v=0.999,       # ν (nu) in PSW, vee here
-                                   σ_bar=0.0072,  # same in PSW
-                                   s_σ=2.8e-6)    # ϕ_σ in PSW
-    d = σ_bar^2 * (1 - v)
-    return StochasticVolatility(ρ, s_z, v, d, s_σ)
-end
+include("ez_model.jl")
+include("bansal_yaron_state_process.jl")
 
 
 function compute_K_bansal_yaron(ez::EpsteinZin, 
@@ -54,7 +24,6 @@ function compute_K_bansal_yaron(ez::EpsteinZin,
 
     for m in 1:M
         for mp in 1:M
-            i, j = multi_from_single(m, J)
             z, σ = x[1, m], x[2, m] 
             a = exp((1 - γ) * (μ + z) + (1 - γ)^2 * σ^2 / 2)
             K[m, mp] =  a * Q[m, mp]
@@ -73,21 +42,21 @@ an IxJ matrix X of (z_{ij}, σ_i) pairs, and a matrix of corresponding values
 W = w_{ij}
 
 """
-function compute_fp_by(ez::EpsteinZin, 
-                       sv::StochasticVolatility;
-                       μ=0.0015, 
-                       I=10,  
-                       J=10, 
-                       L=20,
-                       tol=1e-5, 
-                       max_iter=8000)
+function compute_fp_bansal_yaron(ez::EpsteinZin, 
+                               sv::StochasticVolatility;
+                               μ=0.0015, 
+                               I=10,  
+                               J=10, 
+                               L=20,
+                               tol=1e-5, 
+                               max_iter=8000)
 
     # Unpack and set up parameters EpsteinZin parameters
     ψ, γ, β, ζ, θ = ez.ψ, ez.γ, ez.β, ez.ζ, ez.θ
     theta_inv, psi_inv = 1 / θ, 1 / ψ
 
     # Obtain the states associated with the SV process
-    x, Q, Z, σ_vals = discretize_sv(sv, I, J, verbose=true)
+    x, Q, Z, σ_vals = discretize_sv(sv, I, J)
 
     K = compute_K_bansal_yaron(ez, sv, μ=μ, I=I, J=J)
     M = I * J

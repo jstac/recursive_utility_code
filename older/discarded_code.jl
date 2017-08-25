@@ -1,55 +1,8 @@
 #=
 
-Code for the linear state space (Tallarini) growth path.  The growth process
-for consumption is
+I think I have newer versions of this and it can be discarded.  Saving for
+    safety.
 
-    ln (C' / C) = \mu + X' - X
-
-and {X} is a finite state Markov chain.
-
-=#
-
-include("ez_model.jl")
-
-
-"""
-Compute the K matrix corresponding to the linear time trend.
-
-"""
-function compute_K_ltt(ez::EpsteinZin, 
-                       mc::MarkovChain, 
-                       μ::AbstractFloat)
-    x = mc.state_values
-    c1 = ez.β^ez.θ 
-    c2 = 1 - ez.γ
-    M = length(x)
-    K = Array{Float64}(M, M)
-    for i in 1:M
-        for j in 1:M
-            K[i, j] = c1 * exp(c2 * (μ + x[j] - x[i])) * mc.p[i, j]
-        end
-    end
-    return K
-end
-
-
-"""
-Compute the K matrix corresponding to the linear time trend 
-growth process for consumption when {X} is an AR1 process (which is 
-then converted to a finite state Markov chain.)
-
-"""
-function compute_K_ltt(ez::EpsteinZin, 
-                       ar1::AR1, 
-                       μ::AbstractFloat, 
-                       M::Integer)
-    mc = ar1_to_mc(ar1, M)
-    return compute_K_ltt(ez, mc, μ)
-end
-
-
-
-#=
 
 Code for the Bansal-Yaron and BKY growth paths.  The growth process for
 consumption is

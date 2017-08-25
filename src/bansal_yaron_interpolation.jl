@@ -6,6 +6,8 @@ interpolation.
 =#
 
 using Interpolations
+include("ez_model.jl")
+include("bansal_yaron_state_process.jl")
 
 function T_interp(ez::EpsteinZin,
                   sv::StochasticVolatility,
@@ -19,7 +21,7 @@ function T_interp(ez::EpsteinZin,
 
     # Unpack parameters
     β, γ, θ = ez.β, ez.γ, ez.θ
-    ρ, v, d, s_z, s_σ = sv.ρ, sv.v, sv.d, sv.s_z, sv.s_σ
+    ρ, v, d, ϕ_z, ϕ_σ = sv.ρ, sv.v, sv.d, sv.ϕ_z, sv.ϕ_σ
 
     η_shock_size = length(η_vec)
     ω_shock_size = length(ω_vec)
@@ -34,8 +36,8 @@ function T_interp(ez::EpsteinZin,
             s = 0.0
             for η in η_vec
                 for ω in ω_vec
-                    zp = ρ * z + s_z * σ * η
-                    σp2 = v * σ^2 + d + s_σ * ω
+                    zp = ρ * z + ϕ_z * σ * η
+                    σp2 = v * σ^2 + d + ϕ_σ * ω
                     σp = σp2 < 0 ? 1e-8 : sqrt(σp2)
                     s += w_func[zp, σp]^θ
                 end
