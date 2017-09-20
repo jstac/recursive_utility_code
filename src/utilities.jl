@@ -6,12 +6,6 @@ Some utilities, including convenience functions for AR1 models
 
 
 
-"""
-Function to compute spectral radius of a matrix.
-
-"""
-compute_spec_rad(Q::Matrix) = maximum(abs, eigvals(Q))
-
 
 """
 Struct to store parameters of AR1 model
