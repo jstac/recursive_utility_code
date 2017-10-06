@@ -3,6 +3,8 @@
 Epstein-Zin utility specification, plus default constructors for
 some standard models.
 
+Author: @jstac
+
 =#
 
 
@@ -18,7 +20,7 @@ end
 
 
 """
-EpsteinZin constructor for BY model.
+EpsteinZin constructor for Bansal-Yaron model.
 
 """
 function EpsteinZinBY(; ψ=1.5, γ=10.0, β=0.998)

@@ -17,18 +17,19 @@ function stability_plot(model_type::String,
                         save=true,
                         G=20)              # grid size for x and y axes
 
-    if model_type == "ssy"
-        ez = EpsteinZinSSY()
-        cp = SSYconsumption()
-        text = "Schorfheide, Song and Yaron "
-    else
+    if model_type == "by"
         ez = EpsteinZinBY()
         cp = BYconsumption()
         text = "Bansal and Yaron "
+    else
+        ez = EpsteinZinSSY()
+        cp = SSYconsumption()
+        text = "Schorfheide, Song and Yaron "
     end
 
-    # First extract default parameter values
+    cpd = discretize(cp, int_vec)
 
+    # First extract default parameter values
     if param1 in fieldnames(cp)
         param1_value = getfield(cp, param1)
     else
@@ -47,10 +48,15 @@ function stability_plot(model_type::String,
     x_vals = linspace(p1_min, p1_max, G)   # values for param1 
     y_vals = linspace(p2_min, p2_max, G)   # values for param2
 
+    re_discretize = false
+
     for (i, x) in enumerate(x_vals)
 
         if param1 in fieldnames(cp)
             setfield!(cp, param1, x)
+            if param1 != :μ
+                re_discretize = true
+            end
         else
             setfield!(ez, param1, x)
         end
@@ -60,8 +66,15 @@ function stability_plot(model_type::String,
 
             if param2 in fieldnames(cp)
                 setfield!(cp, param2, y)
+                if param1 != :μ
+                    re_discretize = true
+                end
             else
                 setfield!(ez, param2, y)
+            end
+
+            if re_discretize == true
+                cpd = discretize(cp, int_vec)
             end
 
             if method == "spec_rad"
@@ -69,11 +82,10 @@ function stability_plot(model_type::String,
                 θ = (1 - ez.γ) / (1 - 1/ez.ψ)
                 @assert θ < 0 "Detected non-negative theta value"
 
-                R[i, j] = compute_spec_rad(ez, cp, int_vec)
-
+                R[i, j] = compute_spec_rad(ez, cpd)
             else
 
-                R[i, j] = compute_mm_coef(ez, cp, int_vec)
+                R[i, j] = compute_mm_coef(ez, cpd)
             end
 
         end

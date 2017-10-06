@@ -1,18 +1,26 @@
+#=
+
+Compute the fixed point of T by iteration.
+
+=#
+
+
+include("stability_tests.jl")
 
 
 """
-Iterate to convergence on the Koopmans operator. Unpack the final result into
-an IxJ matrix X of (z_{ij}, σ_i) pairs, and a matrix of corresponding values 
-W = w_{ij}
+Iterate to convergence on the Koopmans operator assocaited with the BY model.
+Unpack the result into an IxJ matrix X of (z_{ij}, σ_i) pairs, and a matrix of
+corresponding values W = w_{ij}
 
 """
-function compute_fp_by(ez::EpsteinZin, 
-                       by::BYconsumption;
-                       I=10,  
-                       J=10, 
-                       L=20,
-                       tol=1e-5, 
-                       max_iter=8000)
+function compute_fp(ez::EpsteinZin, 
+                    by::BYconsumption;
+                    I=10,  
+                    J=10, 
+                    L=20,
+                    tol=1e-5, 
+                    max_iter=8000)
 
     # Unpack and set up parameters EpsteinZin parameters
     ψ, γ, β = ez.ψ, ez.γ, ez.β

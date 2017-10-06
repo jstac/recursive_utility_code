@@ -1,6 +1,6 @@
 #= 
 
-Some utilities, including convenience functions for AR1 models
+Some utilities for working with AR1 models
 
 =#
 
