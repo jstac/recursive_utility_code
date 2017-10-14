@@ -1,3 +1,9 @@
+#= 
+
+Compute the matrix corresponding to the valuation operator for the BY and SSY
+models.
+
+=#
 
 include("ez_model.jl")
 include("by_consumption.jl")
@@ -34,6 +40,7 @@ function compute_K(ez::EpsteinZin, byd::BYconsumptionDiscretized)
 end
 
 
+
 """
 Compute K in the BY model, convenience function.
 
@@ -67,7 +74,6 @@ function compute_K(ez::EpsteinZin, ssyd::SSYconsumptionDiscretized)
 
     M = I * J * K
     K_matrix = Array{Float64}(M, M)
-
 
     for m in 1:M
         for mp in 1:M

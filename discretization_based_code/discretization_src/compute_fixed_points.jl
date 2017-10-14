@@ -14,7 +14,7 @@ Iterate to convergence on the Koopmans operator assocaited with the BY model.
 """
 function compute_fp(ez::EpsteinZin, 
                     cpd::DiscretizedConsumptionProcess;
-                    tol=1e-5, 
+                    tol=1e-6, 
                     init_val=1, 
                     max_iter=20000)
 

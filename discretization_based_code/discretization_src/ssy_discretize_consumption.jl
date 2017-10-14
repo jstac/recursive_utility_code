@@ -49,43 +49,8 @@ The rule for the index is
 =#
 
 include("consumption.jl")
-import QuantEcon: rouwenhorst, MarkovChain
+using QuantEcon
 
-
-"""
-Struct for parameters of SSY model
-
-"""
-mutable struct SSYconsumption{T <: Real}  <: ConsumptionProcess
-    μ::T 
-    ρ::T 
-    ϕ_z::T 
-    σ_bar::T
-    ϕ_c::T
-    ρ_hz::T
-    σ_hz::T
-    ρ_hc::T 
-    σ_hc::T 
-end
-
-
-"""
-Default values from May 2017 version of Schorfheide, Song and Yaron. 
-See p. 28.
-
-"""
-
-function SSYconsumption()
-    return SSYconsumption(0.0016,              # μ
-               0.987,               # ρ
-               0.215,               # ϕ_z
-               0.0032,              # σ_bar
-               1.0,                 # ϕ_c
-               0.992,               # ρ_hz
-               sqrt(0.0039),        # σ_hz
-               0.991,               # ρ_hc
-               sqrt(0.0096))        # σ_hc
-end
 
 
 """
@@ -136,8 +101,8 @@ function discretize(ssy::SSYconsumption,
         ssy.ρ, ssy.ϕ_z, ssy.σ_bar, ssy.ϕ_c, ssy.ρ_hz, ssy.σ_hz, ssy.ρ_hc, ssy.σ_hc
 
     ## Discretize by applying rouwenhorst to h_c and h_z
-    hc_mc = rouwenhorst(K, ρ_hc, σ_hc)
-    hz_mc = rouwenhorst(I, ρ_hz, σ_hz)
+    hc_mc = tauchen(K, ρ_hc, σ_hc)
+    hz_mc = tauchen(I, ρ_hz, σ_hz)
 
     σ_c_states  = ϕ_c * σ_bar * exp.(collect(hc_mc.state_values))
     σ_z_states  = ϕ_z * σ_bar * exp.(collect(hz_mc.state_values))
@@ -153,7 +118,7 @@ function discretize(ssy::SSYconsumption,
     # Also, record transition probability from z_states[i, j] to 
     # z_states[i, jp] when σ_z = σ_z[i].  Store it as q[i, j, jp].
     for (i, σ_z) in enumerate(σ_z_states)
-        mc_z = rouwenhorst(J, ρ, sqrt(1 - ρ^2) * σ_z, 0.0) 
+        mc_z = tauchen(J, ρ, sqrt(1 - ρ^2) * σ_z) 
         for j in 1:J
             z_states[i, j] = mc_z.state_values[j]
             for jp in 1:J
@@ -197,7 +162,7 @@ end
 
 
 
-function sim_consumption(ssyd::SSYconsumptionDiscretized,
+function sim_consumption(ssyd::SSYconsumptionDiscretized;
                          ts_length=1000)
 
     # Unpack
@@ -207,7 +172,8 @@ function sim_consumption(ssyd::SSYconsumptionDiscretized,
     M = ssyd.I * ssyd.J * ssyd.K
 
 
-    mc = MarkovChain(Q, x_states)
+    mc = MarkovChain(Q, [ssyd.x_states[:, m] for m in 1:M])
+
     c_growth = Vector{Float64}(ts_length)
     z_vals = Vector{Float64}(ts_length)
     σ_c_vals = Vector{Float64}(ts_length)

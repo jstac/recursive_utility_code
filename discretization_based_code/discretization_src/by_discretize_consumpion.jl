@@ -1,20 +1,10 @@
 #=
 
-The Bansal Yaron consumption process is
-
-    g = μ + z + σ η
-
-    z' = ρ z + ϕ_z σ e'
-
-    (σ^2)' = v σ^2 + d + ϕ_σ w'
-
-where {e} and {w} are IID and N(0, 1). 
-
-We provide operations to discretize this process.  The discretization method
-uses two iterations of Rouwenhorst.  The discretized version is a
-representation of a Markov chain with finitely many states x = (z, σ) and
-stochastic matrix giving transition probabilitites between them.  The σ
-process is truncated at zero.
+We provide operations to discretize the Bansal-Yaron consumption process.  The
+discretization method uses two iterations of Rouwenhorst.  The discretized
+version is a representation of a Markov chain with finitely many states x =
+(z, σ) and stochastic matrix giving transition probabilitites between them.
+The σ process is truncated at zero.
 
 More specifically, discretization produces a (2, M) matrix x_states, each
 element x of which is a pair (z, σ) stacked vertically, and a transition
@@ -43,35 +33,8 @@ arising from the discretization of σ and z discussed above.
 =#
 
 include("consumption.jl")
-import QuantEcon: rouwenhorst, MarkovChain
-
-
-"""
-Struct for parameters of the BY model as described above.
-
-"""
-mutable struct BYconsumption{T <: Real}  <: ConsumptionProcess
-    μ::T
-    ρ::T
-    ϕ_z::T
-    v::T
-    d::T
-    ϕ_σ::T
-end
-
-
-"""
-A constructor using parameters from the BY paper.
-
-"""
-function BYconsumption()
-    return BYconsumption(0.0015,     # μ
-                         0.979,      # ρ
-                         0.044,      # ϕ_z 
-                         0.987,      # v
-                         7.9092e-7,  # d 
-                         2.3e-6)     # ϕ_σ
-end
+using QuantEcon
+using StatsBase
 
 
 """
@@ -184,7 +147,7 @@ end
 
 
 
-function sim_consumption(byd::BYconsumptionDiscretized,
+function sim_consumption(byd::BYconsumptionDiscretized;
                          ts_length=1000)
 
     M = byd.I * byd.J
@@ -204,8 +167,5 @@ function sim_consumption(byd::BYconsumptionDiscretized,
     
     return σ_vals, z_vals, c_growth
 end
-
-
-
 
 
