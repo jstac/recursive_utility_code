@@ -158,7 +158,7 @@ function K_interp!(ez::EpsteinZin,
     s_vec = mc.state_values
     p_vec = mc.p[1, :]  # Any row, all columns
 
-    # Interpolate w and allocate memory for new w
+    # Interpolate g and allocate memory for new g
     g_func = interpolate((z_grid, h_z_grid, h_c_grid), g_in, Gridded(Linear()))
 
     # Apply the operator K to g, computing Kg and || Kg ||

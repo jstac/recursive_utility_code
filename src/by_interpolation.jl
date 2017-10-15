@@ -129,7 +129,7 @@ function K_interp!(ez::EpsteinZin,
     ω_shock_size = length(ω_vec)
     n = η_shock_size * ω_shock_size
 
-    # Interpolate w and allocate memory for new w
+    # Interpolate g and allocate memory for new g
     g_func = interpolate((z_grid, σ_grid), g_in, Gridded(Linear()))
 
     # Apply the operator K to g, computing Kg and || Kg ||
@@ -187,7 +187,7 @@ function K_interp!(ez::EpsteinZin,
     s_vec = mc.state_values
     p_vec = mc.p[1, :]  # Any row, all columns
 
-    # Interpolate w and allocate memory for new w
+    # Interpolate g and allocate memory for new g
     g_func = interpolate((z_grid, σ_grid), g_in, Gridded(Linear()))
 
     # Apply the operator K to g, computing Kg and || Kg ||
