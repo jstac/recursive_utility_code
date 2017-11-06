@@ -1,5 +1,5 @@
-include("by_interpolation.jl")
-include("ssy_interpolation.jl")
+include("by_stability.jl")
+include("ssy_stability.jl")
 
 using PyPlot
 plt = PyPlot
@@ -47,6 +47,7 @@ function stability_plot(model_type::String,
     y_vals = linspace(p2_min, p2_max, G)   # values for param2
 
 
+    # Loop through parameters computing test coefficient
     for (i, x) in enumerate(x_vals)
 
         if param1 in fieldnames(cp)
@@ -66,14 +67,11 @@ function stability_plot(model_type::String,
 
             if method == "spec_rad"
 
-                θ = (1 - ez.γ) / (1 - 1/ez.ψ)
-                @assert θ < 0 "Detected non-negative theta value"
-
-                r = compute_spec_rad_interp(ez, cp)
+                r = compute_spec_rad_coeff(ez, cp)
                 R[i, j] = r
             else
 
-                R[i, j] = compute_mm_coef_interp(ez, cp)
+                R[i, j] = compute_mm_coef(ez, cp)
             end
 
         end
@@ -83,8 +81,8 @@ function stability_plot(model_type::String,
 
     cs1 = ax[:contourf](x_vals, 
                         y_vals, 
-                        R',
-                        alpha=0.6)
+                        R', # cmap=plt.cm[:jet],
+                        alpha=0.5)
 
     ctr1 = ax[:contour](x_vals, 
                         y_vals, 
