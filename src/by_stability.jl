@@ -17,7 +17,7 @@ function compute_spec_rad_coef(ez::EpsteinZin, bc::BYConsumption;
     # Unpack
     θ, β, γ = ez.θ, ez.β, ez.γ
     
-    prod_sum = 0.0
+    sum_obs = 0.0
     
     for m in 1:M
         c, z, σ = simulate(bc, 
@@ -25,10 +25,10 @@ function compute_spec_rad_coef(ez::EpsteinZin, bc::BYConsumption;
                            σ0=σ0, 
                            seed=m, 
                            ts_length=N+1);
-        prod_sum += prod(β^θ .* exp.( (1 - γ) .* c ))
+        sum_obs +=  exp((1 - γ) * sum(c))
     end
 
-    rK = (prod_sum / M)^(1/N)
+    rK = β^θ * (sum_obs / M)^(1/N)
     return rK^θ  
 end
 
