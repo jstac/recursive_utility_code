@@ -29,7 +29,7 @@ function compute_spec_rad_coef(ez::EpsteinZin, bc::BYConsumption;
     end
 
     rK = β^θ * (sum_obs / M)^(1/N)
-    return rK^θ  
+    return rK^(1/θ)
 end
 
 

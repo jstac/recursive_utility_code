@@ -27,7 +27,7 @@ function compute_spec_rad_coef(ez, sc; z0=0.0, h_z0=0.0, h_c0=0.0, M=1000, N=200
     end
 
     rK = (prod_sum / M)^(1/N)
-    return rK^θ
+    return rK^(1/θ)
 end
 
 
