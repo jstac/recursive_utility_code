@@ -25,9 +25,8 @@ end
 EpsteinZin constructor for Bansal-Yaron model.
 
 """
-function EpsteinZinBY(; ψ=1.5, γ=10.0, β=0.998)
+function EpsteinZinBY(; ψ=1.5, γ=10.0, β=0.998, ζ=1.0)
     θ = (1 - γ) / (1 - 1/ψ)
-    ζ = 1 - β
     return EpsteinZin(ψ, γ, β, ζ, θ)
 end
 
@@ -37,7 +36,7 @@ EpsteinZin constructor for SSY model.  See p. 28 of the May 2017 version
 of Schorfheide, Song and Yaron.
 
 """
-function EpsteinZinSSY(; ψ=1.97, γ=8.89, β=0.999, ζ=1-β)
+function EpsteinZinSSY(; ψ=1.97, γ=8.89, β=0.999, ζ=1.0)
     θ = (1 - γ) / (1 - 1/ψ)
     return EpsteinZin(ψ, γ, β, ζ, θ)
 end

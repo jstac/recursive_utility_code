@@ -1,6 +1,5 @@
 
-include("by_stability.jl")
-include("ssy_stability.jl")
+include("stability_coefficients.jl")
 
 using PyPlot
 plt = PyPlot
@@ -15,7 +14,7 @@ function stability_plot(model_type::String,
                         p2_max::Float64;   # min value for param2
                         coords=(-225, 30),
                         method="spec_rad", # method
-                        save=true,
+                        save=false,
                         G=20)              # grid size for x and y axes
 
 
@@ -84,7 +83,7 @@ function stability_plot(model_type::String,
                 R[i, j] = r
             else
 
-                R[i, j] = compute_mm_coef(ez, cp)
+                R[i, j] = compute_ez_coef(ez, cp)
             end
 
         end
