@@ -7,16 +7,16 @@ by Jaroslav Borovička and John Stachurski.
 
 The paper is available [via arXiv](https://arxiv.org/abs/1710.06526).
 
-At this stage the code is written only in Python and Julia.  MATLAB code is in
-the pipeline.  (Please prompt us if you need it.)
+The code is written in MATLAB, Python and Julia. 
 
-The Python code is slower but it's also clearer and more stable.  (The only
+The MATLAB and Python code is slower but also clearer and more stable.  (The only
 issue with speed is that we need to recompute the stability coefficients at
-many different parameterizations.  This operation is highly
+many parameterizations.  This operation is highly
 parallelizable but any such optimizations make the code less transparent and
 less portable.  Hence we've stuck with the base implementation.)
 
-The figures are reconstructed in Jupyter notebooks.  If you navigate to the
+In the case of MATLAB, execute the `run_*` files.  In the case of Python and
+Julia, the figures are reconstructed in Jupyter notebooks.  If you navigate to the
 `*.ipynb` files in the directories above you will be able to see them.
 
 The whole scientific Python stack can be downloaded as a package
