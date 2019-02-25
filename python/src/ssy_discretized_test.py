@@ -1,5 +1,54 @@
 """
-Translation of ssy_discretized_test.jl to Python. 
+Calculate stability test value Lambda via discretization.
+
+Step one is discreization of the consumption process in Schorfheide, Song and
+Yaron, where log consumption growth g is given by
+
+    g = μ + z + σ_c η'
+
+    z' = ρ z + sqrt(1 - ρ^2) σ_z e'
+
+    σ_z = ϕ_z σ_bar exp(h_z)
+
+    σ_c = ϕ_c σ_bar exp(h_c)
+
+    h_z' = ρ_hz h_z + σ_hz u'
+
+    h_c' = ρ_hc h_c + σ_hc w'
+
+Here {e}, {u} and {w} are IID and N(0, 1).  
+
+The discretization method uses iterations of the Tauchen method.  The indices
+are
+
+    σ_c[k] for k in range(K)
+    σ_z[i] for i in range(I)
+    z[i, :] is all z states when σ_z = σ_z[i] and z[i, j] is j-th element
+
+The discretized version is a representation of a Markov chain with finitely
+many states 
+
+    x = (σ_c, σ_z, z)
+
+and stochastic matrix Q giving transition probabilitites between them.
+
+The set of states x_states is computed as a 3 x M matrix with each column
+corresponding to values of (σ_c, σ_z, z)'
+
+Discretize the SSY state process builds the discretized state values for the
+    states (σ_c, σ_z, z) and a transition matrix Q such that 
+
+    Q[m, mp] = probability of transition x[m] -> x[mp]
+
+where
+
+    x[m] := (σ_c[k], σ_z[i], z[i,j])
+    
+The rule for the index is
+
+    m = k * (I * J) + i * J + j
+
+
 
 @Stearn 
 @jstac
@@ -9,10 +58,11 @@ Tue Feb 26 04:38:57 AEDT 2019
 """
 
 from ssy_model import *
-import quantecon
+from quantecon import tauchen
 import numpy as np
-from numpy import linalg as la
+from scipy.linalg import eigvals
 
+    
 
 class SSYConsumptionDiscretized:
     """
@@ -25,23 +75,27 @@ class SSYConsumptionDiscretized:
                     K,
                     I,
                     J,
-                    sigma_c_states,
-                    sigma_z_states,
+                    σ_c_states,
+                    σ_z_states,
                     z_states,
                     x_states,
                     Q):
 
         self.ssy = ssy
         self.K, self.I, self.J = K, I, J
-        self.sigma_c_states = sigma_c_states
-        self.sigma_z_states = sigma_z_states
+        self.σ_c_states = σ_c_states
+        self.σ_z_states = σ_z_states
         self.z_states = z_states
         self.x_states = x_states
         self.Q = Q
 
+
 def split_index(i, M):
-    div = (i - 1) // M + 1
-    rem = (i - 1) % M + 1
+    """
+    A utility function for the multi-index.
+    """
+    div = i // M
+    rem = i % M
     return (div, rem)
 
 def single_to_multi(m, I, J):
@@ -50,9 +104,14 @@ def single_to_multi(m, I, J):
     return (k, i, j)
 
 def multi_to_single(k, i , j, I, J):
-    return (k - 1) * (I * J) + (i - 1) * J + j
+    return k  * (I * J) + i * J + j
+
 
 def discretize(ssy, K, I, J):
+    """
+    And here's the actual discretization process.  
+
+    """
 
     ρ = ssy.ρ
     ϕ_z = ssy.ϕ_z
@@ -63,36 +122,31 @@ def discretize(ssy, K, I, J):
     ρ_hc = ssy.ρ_hc
     σ_hc = ssy.σ_hc
 
-    hc_mc = tauchen(ρ_hc, σ_hc, K)
-    hz_mc = tauchen(ρ_hz, σ_hz, I)
+    hc_mc = tauchen(ρ_hc, σ_hc, n=K)
+    hz_mc = tauchen(ρ_hz, σ_hz, n=I)
 
-    σ_c_states = ϕ_c * σ_bar * np.exp(collect(hc_mc.state_values))
-    σ_z_states = ϕ_z * σ_bar * np.exp(collect(hz_mc.state_values))
+    σ_c_states = ϕ_c * σ_bar * np.exp(hc_mc.state_values)
+    σ_z_states = ϕ_z * σ_bar * np.exp(hz_mc.state_values) 
 
     M = I * J * K
-    z_states = np.zeros(I, J)
-    q = np.zeros(I, J, J)
-    Q = np.zeros(M, M)
-    x_states = np.zeros(3, M)
+    z_states = np.zeros((I, J))
+    q = np.zeros((I, J, J))
+    Q = np.zeros((M, M))
+    x_states = np.zeros((3, M))
 
-    for (i, σ_z) in enumerate(σ_z_states):
-        mc_z = tauchen(J, ρ, sqrt(1 - ρ**2) * σ_z)
+    for i, σ_z in enumerate(σ_z_states):
+        mc_z = tauchen(ρ, np.sqrt(1 - ρ**2) * σ_z, n=J)
         for j in range(J):
             z_states[i, j] = mc_z.state_values[j]
             for jp in range(J):
-                q[i, j, jp] = mc_z.p[j, jp]
-            end
-        end
-    end
+                q[i, j, jp] = mc_z.P[j, jp]
 
     for m in range(M):
         k, i, j = single_to_multi(m, I, J)
         x_states[:, m] = [σ_c_states[k], σ_z_states[i], z_states[i, j]]
         for mp in range(M):
             kp, ip, jp = single_to_multi(mp, I, J)
-            Q[m, mp] = hc_mc.p[k, kp] * hz_mc.p[i, ip] * q[i, j, jp]
-        end
-    end
+            Q[m, mp] = hc_mc.P[k, kp] * hz_mc.P[i, ip] * q[i, j, jp]
 
     # Create an instance of SSYConsumptionDiscretized to store output
     ssyd = SSYConsumptionDiscretized(ssy, 
@@ -100,53 +154,63 @@ def discretize(ssy, K, I, J):
 
     return ssyd
 
-def easydiscretize(ssy, intvec):
-    K, I, J = intvec
-    return discretize(ssy, K, I, J)
 
 def compute_spec_rad(Q):
-    return max(abs(la.eig(Q)))
+    """
+    Function to compute spectral radius of a matrix.
 
-def compute_K(ez, ssyd):
+    """
+    return np.max(np.abs(eigvals(Q)))
 
-    ψ = ez.ψ
-    γ = ez.γ
-    β = ez.β
+
+def compute_K(ssy, K, I, J):
+    """
+    Compute K in the SSY model.
+
+    """
+
+    ψ = ssy.ψ
+    γ = ssy.γ
+    β = ssy.β
 
     θ = (1 - γ) / (1 - 1/ψ)
-    μ = ssyd.ssy.μ_c
+    μ = ssy.μ_c
 
-    K = ssyd.K
-    I = ssyd.I
-    J = ssyd.J
+    ssyd = discretize(ssy, K, I, J)
 
     σ_c_states = ssyd.σ_c_states
     σ_z_states = ssyd.σ_z_states
     z_states = ssyd.z_states
     Q = ssyd.Q
 
+    M = I * J * K
+    K_matrix = np.empty((M, M))
+
     for m in range(M):
         for mp in range(M):
             k, i, j = single_to_multi(m, I, J)
             σ_c, σ_z, z = σ_c_states[k], σ_z_states[i], z_states[i, j]
-            a = exp((1 - γ) * (μ + z) + (1 - γ)**2 * σ_c**2 / 2)
+            a = np.exp((1 - γ) * (μ + z) + (1 - γ)**2 * σ_c**2 / 2)
             K_matrix[m, mp] =  a * Q[m, mp]
-        end
-    end
 
     return β**θ * K_matrix
 
-def compute_test_val(ez, ssy, K, I, J):
 
-    ψ = ez.ψ
-    γ = ez.γ
-    β = ez.β
+def compute_test_val(ssy, K=6, I=6, J=6):
+    """
+    Compute the test value Lambda
+
+    """
+
+    ψ = ssy.ψ
+    γ = ssy.γ
+    β = ssy.β
 
     θ = (1 - γ) / (1 - 1/ψ)
 
-    ssyd = discretize(ssy, K, I, J)
-    K_matrix = compute_K(ez, ssyd)
+    K_matrix = compute_K(ssy, K, I, J)
 
     rK = compute_spec_rad(K_matrix)
+
     return rK**(1/θ)
 
