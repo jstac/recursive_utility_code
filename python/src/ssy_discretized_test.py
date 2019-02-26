@@ -1,4 +1,5 @@
 """
+
 Calculate stability test value Lambda via discretization.
 
 Step one is discreization of the consumption process in Schorfheide, Song and
@@ -58,11 +59,13 @@ Tue Feb 26 04:38:57 AEDT 2019
 """
 
 from ssy_model import *
-from quantecon import tauchen, MarkovChain
+from quantecon import tauchen, MarkovChain, rouwenhorst
 import numpy as np
 from scipy.linalg import eigvals
 from numpy.random import rand, randn
 from numba import njit, prange
+
+default_K, default_I, default_J = 3, 3, 3
 
     
 def compute_spec_rad(Q):
@@ -96,12 +99,12 @@ class SSYConsumptionDiscretized:
 
         self.ssy = ssy
         self.K, self.I, self.J = K, I, J
-        self.σ_c_states = σ_c_states
-        self.σ_c_P = σ_c_P
-        self.σ_z_states = σ_z_states
-        self.σ_z_P = σ_z_P
-        self.z_states = z_states
-        self.z_Q = z_Q
+        self.σ_c_states = σ_c_states    # states
+        self.σ_c_P = σ_c_P              # transition probs
+        self.σ_z_states = σ_z_states    # states
+        self.σ_z_P = σ_z_P              # transition probs
+        self.z_states = z_states        # z[i, :] is z states when σ_z index = i
+        self.z_Q = z_Q                  # z_Q[i, :, :] is trans probs when σ_z index = i
 
 
 def split_index(i, M):
@@ -136,8 +139,8 @@ def discretize(ssy, K, I, J):
     ρ_hc = ssy.ρ_hc
     σ_hc = ssy.σ_hc
 
-    hc_mc = tauchen(ρ_hc, σ_hc, n=K)
-    hz_mc = tauchen(ρ_hz, σ_hz, n=I)
+    hc_mc = rouwenhorst(K, 0, σ_hc, ρ_hc)
+    hz_mc = rouwenhorst(I, 0, σ_hz, ρ_hz)
 
     σ_c_states = ϕ_c * σ_bar * np.exp(hc_mc.state_values)
     σ_z_states = ϕ_z * σ_bar * np.exp(hz_mc.state_values) 
@@ -147,11 +150,10 @@ def discretize(ssy, K, I, J):
     z_Q = np.zeros((I, J, J))
 
     for i, σ_z in enumerate(σ_z_states):
-        mc_z = tauchen(ρ, np.sqrt(1 - ρ**2) * σ_z, n=J)
+        mc_z = rouwenhorst(J, 0, np.sqrt(1 - ρ**2) * σ_z, ρ)
         for j in range(J):
             z_states[i, j] = mc_z.state_values[j]
-            for jp in range(J):
-                z_Q[i, j, jp] = mc_z.P[j, jp]
+            z_Q[i, j, :] = mc_z.P[j, :]
 
     # Create an instance of SSYConsumptionDiscretized to store output
     ssyd = SSYConsumptionDiscretized(ssy, 
@@ -189,7 +191,7 @@ def build_x_mc(ssyd):
         x_states[:, m] = [σ_c_states[k], σ_z_states[i], z_states[i, j]]
         for mp in range(M):
             kp, ip, jp = single_to_multi(mp, I, J)
-            x_P[m, mp] = σ_c_P[k, kp] * σ_c_P[i, ip] * z_Q[i, j, jp]
+            x_P[m, mp] = σ_c_P[k, kp] * σ_z_P[i, ip] * z_Q[i, j, jp]
 
     return x_states, x_P
 
@@ -228,15 +230,12 @@ def compute_K(ssy, K, I, J):
     return β**θ * K_matrix
 
 
-def compute_test_val_spec_rad(ssy, K=6, I=6, J=6):
+def test_val_spec_rad(ssy, K=default_K, I=default_I, J=default_J):
     """
     Compute the test value Lambda
 
     """
-
-    ψ = ssy.ψ
-    γ = ssy.γ
-    β = ssy.β
+    ψ, γ, β = ssy.ψ, ssy.γ, ssy.β
     θ = (1 - γ) / (1 - 1/ψ)
 
     K_matrix = compute_K(ssy, K, I, J)
@@ -245,9 +244,15 @@ def compute_test_val_spec_rad(ssy, K=6, I=6, J=6):
     return rK**(1/θ)
 
 
-def compute_test_val_mc_factory(ssy, K=6, I=6, J=6, parallel_flag=False):
+def mc_factory(ssy, 
+                K=default_K, 
+                I=default_I, 
+                J=default_J, 
+                parallel_flag=True):
     """
-    Compute the test value Lambda
+    Compute the test value Lambda.
+
+    Note that the seed currently has no effect when parallel_flag=True.
 
     """
 
@@ -276,14 +281,14 @@ def compute_test_val_mc_factory(ssy, K=6, I=6, J=6, parallel_flag=False):
     k_init, i_init, j_init = K // 2, I // 2, J // 2
 
     @njit(parallel=parallel_flag)
-    def compute_test_val_mc(n=1000, m=1000, seed=1234):
+    def test_val_mc(n=1000, m=1000, seed=1234):
             
         np.random.seed(seed)
         yn_vals = np.empty(m)
 
         for m_idx in prange(m):
-            k, i, j = k_init, i_init, j_init
             kappa_sum = 0.0
+            k, i, j = k_init, i_init, j_init
 
             for n_idx in range(n):
                 # Increment consumption
@@ -300,7 +305,50 @@ def compute_test_val_mc_factory(ssy, K=6, I=6, J=6, parallel_flag=False):
 
         return np.exp(log_Lm)
 
-    return compute_test_val_mc
+    return test_val_mc
+
+
+def test_x_process_similarity(K=4, I=4, J=4):
+
+    ssy = SSY()
+    ssyd = discretize(ssy, K, I, J)
+
+    σ_c_states = ssyd.σ_c_states
+    σ_c_P_cdf = ssyd.σ_c_P.cumsum(axis=1)
+    σ_z_states = ssyd.σ_z_states
+    σ_z_P_cdf = ssyd.σ_z_P.cumsum(axis=1)
+    z_states = ssyd.z_states
+
+    z_Q_cdf = np.empty_like(ssyd.z_Q)
+    for i in range(I):
+        for j in range(J):
+            z_Q_cdf[i, j, :] = ssyd.z_Q[i, j, :].cumsum()
+
+
+    x_states, x_P = build_x_mc(ssyd)
+
+    x_mc = MarkovChain(x_P)
+
+    p1 = x_mc.stationary_distributions[0]
+
+    k, i, j = K // 2, I // 2, J // 2
+
+    n=100000
+            
+    p2 = np.zeros_like(p1)
+
+    for t in range(n):
+        # Update state
+        j = draw_from_cdf(z_Q_cdf[i, j, :])
+        k = draw_from_cdf(σ_c_P_cdf[k, :])
+        i = draw_from_cdf(σ_z_P_cdf[i, :])
+
+        m = multi_to_single(k, i, j, I, J)
+        p2[m] += 1
+
+    p2 = p2 / n
+
+    return np.abs(p1 - p2)
 
 
 
