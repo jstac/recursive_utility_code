@@ -61,6 +61,8 @@ from ssy_model import *
 from quantecon import tauchen, MarkovChain
 import numpy as np
 from scipy.linalg import eigvals
+from numpy.random import rand, randn
+from numba import njit, prange
 
     
 def compute_spec_rad(Q):
@@ -70,6 +72,9 @@ def compute_spec_rad(Q):
     """
     return np.max(np.abs(eigvals(Q)))
 
+@njit
+def draw_from_cdf(F):
+    return np.searchsorted(F, rand())
 
 class SSYConsumptionDiscretized:
     """
@@ -87,9 +92,7 @@ class SSYConsumptionDiscretized:
                     σ_z_states,
                     σ_z_P,
                     z_states,
-                    z_Q,
-                    x_states,
-                    x_P):
+                    z_Q):
 
         self.ssy = ssy
         self.K, self.I, self.J = K, I, J
@@ -99,8 +102,6 @@ class SSYConsumptionDiscretized:
         self.σ_z_P = σ_z_P
         self.z_states = z_states
         self.z_Q = z_Q
-        self.x_states = x_states
-        self.x_P = x_P
 
 
 def split_index(i, M):
@@ -156,7 +157,7 @@ def discretize(ssy, K, I, J):
     ssyd = SSYConsumptionDiscretized(ssy, 
                                     K, I, J, 
                                     σ_c_states,
-                                    hc_mc.P     # equals σ_c_P 
+                                    hc_mc.P,     # equals σ_c_P 
                                     σ_z_states,
                                     hz_mc.P,    # equals σ_z_P 
                                     z_states, 
@@ -165,12 +166,17 @@ def discretize(ssy, K, I, J):
     return ssyd
 
 
-def build_x_mc(ssyd)
+def build_x_mc(ssyd):
+    """
+    Build the overall state process X.
 
+    """
     σ_c_states = ssyd.σ_c_states
+    σ_c_P = ssyd.σ_c_P
     σ_z_states = ssyd.σ_z_states
+    σ_z_P = ssyd.σ_z_P
     z_states = ssyd.z_states
-    x_P = ssyd.x_P
+    z_Q = ssyd.z_Q
     K, I, J = ssyd.K, ssyd.I, ssyd.J
 
     M = I * J * K
@@ -183,7 +189,9 @@ def build_x_mc(ssyd)
         x_states[:, m] = [σ_c_states[k], σ_z_states[i], z_states[i, j]]
         for mp in range(M):
             kp, ip, jp = single_to_multi(mp, I, J)
-            x_P[m, mp] = hc_mc.P[k, kp] * hz_mc.P[i, ip] * z_Q[i, j, jp]
+            x_P[m, mp] = σ_c_P[k, kp] * σ_c_P[i, ip] * z_Q[i, j, jp]
+
+    return x_states, x_P
 
 
 def compute_K(ssy, K, I, J):
@@ -197,23 +205,24 @@ def compute_K(ssy, K, I, J):
     β = ssy.β
 
     θ = (1 - γ) / (1 - 1/ψ)
-    μ = ssy.μ_c
+    μ_c = ssy.μ_c
+    M = I * J * K
 
     ssyd = discretize(ssy, K, I, J)
 
     σ_c_states = ssyd.σ_c_states
     σ_z_states = ssyd.σ_z_states
     z_states = ssyd.z_states
-    x_P = ssyd.x_P
 
-    M = I * J * K
+    x_states, x_P = build_x_mc(ssyd)
+
     K_matrix = np.empty((M, M))
 
     for m in range(M):
         for mp in range(M):
             k, i, j = single_to_multi(m, I, J)
             σ_c, σ_z, z = σ_c_states[k], σ_z_states[i], z_states[i, j]
-            a = np.exp((1 - γ) * (μ + z) + (1 - γ)**2 * σ_c**2 / 2)
+            a = np.exp((1 - γ) * (μ_c + z) + (1 - γ)**2 * σ_c**2 / 2)
             K_matrix[m, mp] =  a * x_P[m, mp]
 
     return β**θ * K_matrix
@@ -228,21 +237,15 @@ def compute_test_val_spec_rad(ssy, K=6, I=6, J=6):
     ψ = ssy.ψ
     γ = ssy.γ
     β = ssy.β
-
     θ = (1 - γ) / (1 - 1/ψ)
 
     K_matrix = compute_K(ssy, K, I, J)
-
     rK = compute_spec_rad(K_matrix)
 
     return rK**(1/θ)
 
 
-def compute_test_val_mc(ssy, 
-                         K=6, 
-                         I=6, 
-                         J=6, 
-                         n=1000):
+def compute_test_val_mc_factory(ssy, K=6, I=6, J=6, parallel_flag=False):
     """
     Compute the test value Lambda
 
@@ -251,23 +254,53 @@ def compute_test_val_mc(ssy,
     ψ = ssy.ψ
     γ = ssy.γ
     β = ssy.β
+    μ_c = ssy.μ_c
 
     θ = (1 - γ) / (1 - 1/ψ)
-    μ = ssy.μ_c
-
     ssyd = discretize(ssy, K, I, J)
 
     σ_c_states = ssyd.σ_c_states
+    σ_c_P_cdf = ssyd.σ_c_P.cumsum(axis=1)
     σ_z_states = ssyd.σ_z_states
+    σ_z_P_cdf = ssyd.σ_z_P.cumsum(axis=1)
     z_states = ssyd.z_states
-    x_states = ssyd.x_states
-    x_P = ssyd.x_P
-    M = I * J * K
 
-    x_mc = MarkovChain(x_P)
-    y = x_mc.simulate(100)
+    z_Q_cdf = np.empty_like(ssyd.z_Q)
+    for i in range(I):
+        for j in range(J):
+            z_Q_cdf[i, j, :] = ssyd.z_Q[i, j, :].cumsum()
 
-    return y
+    M = K * I * J
+
+    # Choose an initial k, i, j to start simulation from
+    k_init, i_init, j_init = K // 2, I // 2, J // 2
+
+    @njit(parallel=parallel_flag)
+    def compute_test_val_mc(n=1000, m=1000, seed=1234):
+            
+        np.random.seed(seed)
+        yn_vals = np.empty(m)
+
+        for m_idx in prange(m):
+            k, i, j = k_init, i_init, j_init
+            kappa_sum = 0.0
+
+            for n_idx in range(n):
+                # Increment consumption
+                kappa_sum += μ_c + z_states[i, j] + σ_c_states[k] * randn()
+                # Update state
+                j = draw_from_cdf(z_Q_cdf[i, j, :])
+                k = draw_from_cdf(σ_c_P_cdf[k, :])
+                i = draw_from_cdf(σ_z_P_cdf[i, :])
+
+            yn_vals[m_idx] = np.exp((1-γ) * kappa_sum)
+
+        mean_yns = np.mean(yn_vals)
+        log_Lm = np.log(β) +  (1 / (n * θ)) * np.log(mean_yns)
+
+        return np.exp(log_Lm)
+
+    return compute_test_val_mc
 
 
 

@@ -66,9 +66,9 @@ def ssy_function_factory(ssy,  parallelization_flag=False):
         np.random.seed(seed)
 
         # Implement some burn in for the state
-        x = initial_state
-        for t in range(burn_in):
-            x = update_state(x, c_params)
+        #x = initial_state
+        #for t in range(burn_in):
+        #    x = update_state(x, c_params)
 
         # Compute samples for MC stat
         yn_vals = np.empty(m)
@@ -76,6 +76,7 @@ def ssy_function_factory(ssy,  parallelization_flag=False):
 
         for i in prange(m):
             kappa_sum = 0.0
+            x = initial_state
 
             for t in range(n):
                 y = update_state(x, c_params)
@@ -85,9 +86,9 @@ def ssy_function_factory(ssy,  parallelization_flag=False):
             yn_vals[i] = np.exp((1-γ) * kappa_sum)
 
         mean_yns = np.mean(yn_vals)
-        Lm = np.log(β) +  (1 / (n * θ)) * np.log(mean_yns)
+        log_Lm = np.log(β) +  (1 / (n * θ)) * np.log(mean_yns)
 
-        return np.exp(Lm)
+        return np.exp(log_Lm)
 
     return ssy_compute_stat_mc
 
