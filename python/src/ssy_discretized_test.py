@@ -59,9 +59,8 @@ Tue Feb 26 04:38:57 AEDT 2019
 """
 
 from ssy_model import *
-from quantecon import tauchen, MarkovChain, rouwenhorst
+from quantecon import MarkovChain, rouwenhorst
 import numpy as np
-from scipy.linalg import eigvals
 from numpy.random import rand, randn
 from numba import njit, prange
 
@@ -73,11 +72,33 @@ def compute_spec_rad(Q):
     Function to compute spectral radius of a matrix.
 
     """
-    return np.max(np.abs(eigvals(Q)))
+    return np.max(np.abs(np.linalg.eigvals(Q)))
 
 @njit
 def draw_from_cdf(F):
     return np.searchsorted(F, rand())
+
+
+@njit
+def split_index(i, M):
+    """
+    A utility function for the multi-index.
+    """
+    div = i // M
+    rem = i % M
+    return (div, rem)
+
+@njit
+def single_to_multi(m, I, J):
+    k, temp = split_index(m, I * J)
+    i, j = split_index(temp, J)
+    return (k, i, j)
+
+@njit
+def multi_to_single(k, i , j, I, J):
+    return k  * (I * J) + i * J + j
+
+
 
 class SSYConsumptionDiscretized:
     """
@@ -106,22 +127,6 @@ class SSYConsumptionDiscretized:
         self.z_states = z_states        # z[i, :] is z states when σ_z index = i
         self.z_Q = z_Q                  # z_Q[i, :, :] is trans probs when σ_z index = i
 
-
-def split_index(i, M):
-    """
-    A utility function for the multi-index.
-    """
-    div = i // M
-    rem = i % M
-    return (div, rem)
-
-def single_to_multi(m, I, J):
-    k, temp = split_index(m, I * J)
-    i, j = split_index(temp, J)
-    return (k, i, j)
-
-def multi_to_single(k, i , j, I, J):
-    return k  * (I * J) + i * J + j
 
 
 def discretize(ssy, K, I, J):
@@ -208,6 +213,7 @@ def compute_K(ssy, K, I, J):
 
     θ = (1 - γ) / (1 - 1/ψ)
     μ_c = ssy.μ_c
+    g = 1 - γ
     M = I * J * K
 
     ssyd = discretize(ssy, K, I, J)
@@ -224,7 +230,7 @@ def compute_K(ssy, K, I, J):
         for mp in range(M):
             k, i, j = single_to_multi(m, I, J)
             σ_c, σ_z, z = σ_c_states[k], σ_z_states[i], z_states[i, j]
-            a = np.exp((1 - γ) * (μ_c + z) + (1 - γ)**2 * σ_c**2 / 2)
+            a = np.exp(g * (μ_c + z) + 0.5 * g**2 * σ_c**2)
             K_matrix[m, mp] =  a * x_P[m, mp]
 
     return β**θ * K_matrix
@@ -277,6 +283,11 @@ def mc_factory(ssy,
 
     M = K * I * J
 
+    x_states, x_P = build_x_mc(ssyd)
+
+    x_mc = MarkovChain(x_P)
+    x_pi_cdf = x_mc.stationary_distributions[0].cumsum()
+
     # Choose an initial k, i, j to start simulation from
     k_init, i_init, j_init = K // 2, I // 2, J // 2
 
@@ -288,7 +299,8 @@ def mc_factory(ssy,
 
         for m_idx in prange(m):
             kappa_sum = 0.0
-            k, i, j = k_init, i_init, j_init
+            m_init = draw_from_cdf(x_pi_cdf)
+            k, i, j = single_to_multi(m_init, I, J)
 
             for n_idx in range(n):
                 # Increment consumption
@@ -308,7 +320,7 @@ def mc_factory(ssy,
     return test_val_mc
 
 
-def test_x_process_similarity(K=4, I=4, J=4):
+def test_x_process_similarity(K=3, I=3, J=3):
 
     ssy = SSY()
     ssyd = discretize(ssy, K, I, J)
@@ -331,22 +343,27 @@ def test_x_process_similarity(K=4, I=4, J=4):
 
     p1 = x_mc.stationary_distributions[0]
 
-    k, i, j = K // 2, I // 2, J // 2
 
-    n=100000
+    n=100_000_000
+
+    @njit
+    def foo():
             
-    p2 = np.zeros_like(p1)
+        p2 = np.zeros_like(p1)
+        k, i, j = K // 2, I // 2, J // 2
 
-    for t in range(n):
-        # Update state
-        j = draw_from_cdf(z_Q_cdf[i, j, :])
-        k = draw_from_cdf(σ_c_P_cdf[k, :])
-        i = draw_from_cdf(σ_z_P_cdf[i, :])
+        for t in range(n):
+            # Update state
+            j = draw_from_cdf(z_Q_cdf[i, j, :])
+            k = draw_from_cdf(σ_c_P_cdf[k, :])
+            i = draw_from_cdf(σ_z_P_cdf[i, :])
 
-        m = multi_to_single(k, i, j, I, J)
-        p2[m] += 1
+            m = multi_to_single(k, i, j, I, J)
+            p2[m] += 1
 
-    p2 = p2 / n
+        return p2 / n
+
+    p2 = foo()
 
     return np.abs(p1 - p2)
 
