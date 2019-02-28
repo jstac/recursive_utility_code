@@ -99,7 +99,6 @@ def multi_to_single(k, i , j, I, J):
     return k  * (I * J) + i * J + j
 
 
-
 class SSYConsumptionDiscretized:
     """
     A class to store the discretized version of SSY consumption dynamics.
@@ -126,7 +125,6 @@ class SSYConsumptionDiscretized:
         self.σ_z_P = σ_z_P              # transition probs
         self.z_states = z_states        # z[i, :] is z states when σ_z index = i
         self.z_Q = z_Q                  # z_Q[i, :, :] is trans probs when σ_z index = i
-
 
 
 def discretize(ssy, K, I, J):
@@ -283,12 +281,10 @@ def mc_factory(ssy,
 
     M = K * I * J
 
-    x_states, x_P = build_x_mc(ssyd)
-
-    x_mc = MarkovChain(x_P)
-    x_pi_cdf = x_mc.stationary_distributions[0].cumsum()
-
-    # Choose an initial k, i, j to start simulation from
+    # Initial state is from the middle of the state space,
+    # which approximates a draw from the stationary distribution.
+    # Tried drawing from the true stationary distribution and it made little
+    # difference to the output and greatly increased runtime.
     k_init, i_init, j_init = K // 2, I // 2, J // 2
 
     @njit(parallel=parallel_flag)
@@ -299,8 +295,7 @@ def mc_factory(ssy,
 
         for m_idx in prange(m):
             kappa_sum = 0.0
-            m_init = draw_from_cdf(x_pi_cdf)
-            k, i, j = single_to_multi(m_init, I, J)
+            k, i, j = k_init, i_init, j_init # single_to_multi(m_init, I, J)
 
             for n_idx in range(n):
                 # Increment consumption
