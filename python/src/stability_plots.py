@@ -1,6 +1,6 @@
 
-from stability_coefficients import *
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def stability_plot(R, 

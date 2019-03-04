@@ -4,10 +4,14 @@ Monte Carlo based computation of the test value, SSY model.
 """
 
 from numpy.random import randn
-from random import normalvariate
 from numba import jit, njit, f8, prange
 
 from ssy_model import *
+
+@njit
+def set_seed(seed):
+    np.random.seed(seed)
+
 
 @njit(f8[:](f8[:], f8[:]))
 def update_state(x, c_params):
@@ -19,9 +23,9 @@ def update_state(x, c_params):
     σ_z = ϕ_z * σ_bar * np.exp(h_z)
     σ_c = ϕ_c * σ_bar * np.exp(h_c)
     # update state
-    z = ρ * z + np.sqrt(1 - ρ**2) * σ_z * normalvariate(0, 1)
-    h_z = ρ_hz * h_z + σ_hz * normalvariate(0, 1)
-    h_c = ρ_hc * h_c + σ_hc * normalvariate(0, 1)
+    z = ρ * z + np.sqrt(1 - ρ**2) * σ_z * randn()
+    h_z = ρ_hz * h_z + σ_hz * randn()
+    h_c = ρ_hc * h_c + σ_hc * randn()
 
     return np.array((z, h_z, h_c))
 
@@ -35,7 +39,7 @@ def eval_kappa(x, y, c_params):
 
     z, h_z, h_c = x
     σ_c = ϕ_c * σ_bar * np.exp(h_c)
-    return μ_c + z + σ_c * normalvariate(0, 1)
+    return μ_c + z + σ_c * randn()
 
 
 def ssy_function_factory(ssy,  parallelization_flag=False):
@@ -49,6 +53,8 @@ def ssy_function_factory(ssy,  parallelization_flag=False):
     μ_c, ρ, ϕ_z, σ_bar, ϕ_c = ssy.μ_c, ssy.ρ, ssy.ϕ_z, ssy.σ_bar, ssy.ϕ_c 
     ρ_hz, σ_hz, ρ_hc, σ_hc = ssy.ρ_hz, ssy.σ_hz, ssy.ρ_hc, ssy.σ_hc 
 
+
+
     @njit(parallel=parallelization_flag)
     def ssy_compute_stat_mc(initial_state=np.zeros(3), 
                          n=1000, 
@@ -60,15 +66,17 @@ def ssy_function_factory(ssy,  parallelization_flag=False):
 
         """
 
+        np.random.seed(1234)
+
         c_params = μ_c, ρ, ϕ_z, σ_bar, ϕ_c, ρ_hz, σ_hz, ρ_hc, σ_hc
         c_params = np.array(c_params)
 
-        np.random.seed(seed)
+
 
         # Implement some burn in for the state
-        #x = initial_state
-        #for t in range(burn_in):
-        #    x = update_state(x, c_params)
+        x = initial_state
+        for t in range(burn_in):
+            x = update_state(x, c_params)
 
         # Compute samples for MC stat
         yn_vals = np.empty(m)

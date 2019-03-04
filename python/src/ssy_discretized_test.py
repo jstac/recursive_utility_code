@@ -125,9 +125,11 @@ class SSYConsumptionDiscretized:
         self.σ_z_P = σ_z_P              # transition probs
         self.z_states = z_states        # z[i, :] is z states when σ_z index = i
         self.z_Q = z_Q                  # z_Q[i, :, :] is trans probs when σ_z index = i
+        self.x_states = None            # Optional storage for X state
+        self.x_P = None                 # Optional storage for X transition probs
 
 
-def discretize(ssy, K, I, J):
+def discretize(ssy, K, I, J, add_x_data=False):
     """
     And here's the actual discretization process.  
 
@@ -168,6 +170,9 @@ def discretize(ssy, K, I, J):
                                     z_states, 
                                     z_Q) 
 
+    if add_x_data:
+        ssyd.x_states, ssyd.x_P = build_x_mc(ssyd)
+
     return ssyd
 
 
@@ -199,28 +204,30 @@ def build_x_mc(ssyd):
     return x_states, x_P
 
 
-def compute_K(ssy, K, I, J):
+def compute_K(ssyd):
     """
     Compute K in the SSY model.
 
     """
 
-    ψ = ssy.ψ
-    γ = ssy.γ
-    β = ssy.β
+    ψ = ssyd.ssy.ψ
+    γ = ssyd.ssy.γ
+    β = ssyd.ssy.β
 
     θ = (1 - γ) / (1 - 1/ψ)
-    μ_c = ssy.μ_c
+    μ_c = ssyd.ssy.μ_c
     g = 1 - γ
-    M = I * J * K
-
-    ssyd = discretize(ssy, K, I, J)
+    K, I, J = ssyd.K, ssyd.I, ssyd.J
+    M = K * I * J
 
     σ_c_states = ssyd.σ_c_states
     σ_z_states = ssyd.σ_z_states
     z_states = ssyd.z_states
 
-    x_states, x_P = build_x_mc(ssyd)
+    if ssyd.x_states is None:
+        x_states, x_P = build_x_mc(ssyd)
+    else: 
+        x_states, x_P = ssyd.x_states, ssyd.x_P
 
     K_matrix = np.empty((M, M))
 
@@ -242,7 +249,8 @@ def test_val_spec_rad(ssy, K=default_K, I=default_I, J=default_J):
     ψ, γ, β = ssy.ψ, ssy.γ, ssy.β
     θ = (1 - γ) / (1 - 1/ψ)
 
-    K_matrix = compute_K(ssy, K, I, J)
+    ssyd = discretize(ssy, K, I, J)
+    K_matrix = compute_K(ssyd)
     rK = compute_spec_rad(K_matrix)
 
     return rK**(1/θ)
