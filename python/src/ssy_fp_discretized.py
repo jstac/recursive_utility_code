@@ -1,7 +1,6 @@
 """
 
-Compute the equilibrium wealth consumption ratio in the SSY model by first
-computing the fixed point of A = phi K.
+Compute the equilibrium wealth consumption ratio in the SSY model by first computing the fixed point of A = phi K.
 
 """
 
