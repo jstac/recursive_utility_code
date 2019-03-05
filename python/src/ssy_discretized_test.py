@@ -262,7 +262,8 @@ def mc_factory(ssy,
                 J=default_J, 
                 parallel_flag=True):
     """
-    Compute the test value Lambda.
+    Compute the test value Lambda via Monte Carlo, under the discretized
+    consumption dynamics.
 
     Note that the seed currently has no effect when parallel_flag=True.
 
@@ -321,54 +322,4 @@ def mc_factory(ssy,
         return np.exp(log_Lm)
 
     return test_val_mc
-
-
-def test_x_process_similarity(K=3, I=3, J=3):
-
-    ssy = SSY()
-    ssyd = discretize(ssy, K, I, J)
-
-    σ_c_states = ssyd.σ_c_states
-    σ_c_P_cdf = ssyd.σ_c_P.cumsum(axis=1)
-    σ_z_states = ssyd.σ_z_states
-    σ_z_P_cdf = ssyd.σ_z_P.cumsum(axis=1)
-    z_states = ssyd.z_states
-
-    z_Q_cdf = np.empty_like(ssyd.z_Q)
-    for i in range(I):
-        for j in range(J):
-            z_Q_cdf[i, j, :] = ssyd.z_Q[i, j, :].cumsum()
-
-
-    x_states, x_P = build_x_mc(ssyd)
-
-    x_mc = MarkovChain(x_P)
-
-    p1 = x_mc.stationary_distributions[0]
-
-
-    n=100_000_000
-
-    @njit
-    def foo():
-            
-        p2 = np.zeros_like(p1)
-        k, i, j = K // 2, I // 2, J // 2
-
-        for t in range(n):
-            # Update state
-            j = draw_from_cdf(z_Q_cdf[i, j, :])
-            k = draw_from_cdf(σ_c_P_cdf[k, :])
-            i = draw_from_cdf(σ_z_P_cdf[i, :])
-
-            m = multi_to_single(k, i, j, I, J)
-            p2[m] += 1
-
-        return p2 / n
-
-    p2 = foo()
-
-    return np.abs(p1 - p2)
-
-
 

@@ -35,10 +35,11 @@ def eval_kappa(x, y, c_params):
     return μ_c + z + σ * randn()
 
 
+
 def by_function_factory(by,  parallelization_flag=False):
     """
-    Produces functions that compute the stability test value Lambda via Monte
-    Carlo.
+    Produces functions that compute the stability test value Lambda 
+    via Monte Carlo.
 
     """
 

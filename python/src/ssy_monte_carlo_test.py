@@ -8,10 +8,6 @@ from numba import jit, njit, f8, prange
 
 from ssy_model import *
 
-@njit
-def set_seed(seed):
-    np.random.seed(seed)
-
 
 @njit(f8[:](f8[:], f8[:]))
 def update_state(x, c_params):
@@ -44,8 +40,8 @@ def eval_kappa(x, y, c_params):
 
 def ssy_function_factory(ssy,  parallelization_flag=False):
     """
-    Produces functions that compute the stability test value Lambda via Monte
-    Carlo.
+    Produces functions that compute the stability test value Lambda via 
+    Monte Carlo.
 
     """
 
@@ -99,6 +95,9 @@ def ssy_function_factory(ssy,  parallelization_flag=False):
         return np.exp(log_Lm)
 
     return ssy_compute_stat_mc
+
+
+
 
 
 def ssy_ff2(ssy):
