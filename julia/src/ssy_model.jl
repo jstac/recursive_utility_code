@@ -1,8 +1,8 @@
 #=
 
 Epstein-Zin utility specification and the Schorfheide, Song and Yaron model
-consumption process. 
-    
+consumption process.
+
 Log consumption growth g_c is given by
 
     g_c = μ_c + z + σ_c η'
@@ -17,7 +17,7 @@ Log consumption growth g_c is given by
 
     h_c' = ρ_hc h_c + σ_hc w'
 
-Here {e}, {u} and {w} are IID and N(0, 1).  
+Here {e}, {u} and {w} are IID and N(0, 1).
 
 
 Author: @jstac
@@ -35,7 +35,7 @@ struct EpsteinZin{T <: Real}
     ψ::T   # Elasticity of intertemporal substitution
     γ::T   # Risk aversion parameter
     β::T   # Time discount factor
-    ζ::T   # Typically 1 - β 
+    ζ::T   # Typically 1 - β
     θ::T   # Derived parameter (1 - γ) / (1 - 1/ψ)
 end
 
@@ -59,16 +59,16 @@ Consumption process parameters of SSY model
 
 
 """
-struct SSYConsumption{T <: Real}  
-    μ_c::T 
-    ρ::T 
-    ϕ_z::T 
-    σ_bar::T
-    ϕ_c::T
-    ρ_hz::T
-    σ_hz::T
-    ρ_hc::T 
-    σ_hc::T 
+struct SSYConsumption{T <: Real}
+        μ_c::T
+        ρ::T
+        ϕ_z::T
+        σ_bar::T
+        ϕ_c::T
+        ρ_hz::T
+        σ_hz::T
+        ρ_hc::T
+        σ_hc::T
 end
 
 
@@ -85,8 +85,8 @@ function SSYConsumption(;μ_c=0.0016,
                          ρ_hz=0.992,
                          σ_hz=sqrt(0.0039),
                          ρ_hc=0.991,
-                         σ_hc=sqrt(0.0096))  
-                       
+                         σ_hc=sqrt(0.0096))
+
     return SSYConsumption(μ_c,
                           ρ,
                           ϕ_z,
@@ -97,5 +97,3 @@ function SSYConsumption(;μ_c=0.0016,
                           ρ_hc,
                           σ_hc)
 end
-
-
