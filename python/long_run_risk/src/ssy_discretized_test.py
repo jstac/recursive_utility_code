@@ -59,7 +59,7 @@ Tue Feb 26 04:38:57 AEDT 2019
 """
 
 from ssy_model import *
-from quantecon import MarkovChain, rouwenhorst
+from quantecon import MarkovChain, rouwenhorst, tauchen
 import numpy as np
 from numpy.random import rand, randn
 from numba import njit, prange
@@ -145,7 +145,9 @@ def discretize(ssy, K, I, J, add_x_data=False):
     σ_hc = ssy.σ_hc
 
     hc_mc = rouwenhorst(K, 0, σ_hc, ρ_hc)
+    #hc_mc = tauchen(ρ_hc, σ_hc, n=K)
     hz_mc = rouwenhorst(I, 0, σ_hz, ρ_hz)
+    #hz_mc = tauchen(ρ_hz, σ_hz, n=I)
 
     σ_c_states = ϕ_c * σ_bar * np.exp(hc_mc.state_values)
     σ_z_states = ϕ_z * σ_bar * np.exp(hz_mc.state_values) 
@@ -156,6 +158,7 @@ def discretize(ssy, K, I, J, add_x_data=False):
 
     for i, σ_z in enumerate(σ_z_states):
         mc_z = rouwenhorst(J, 0, np.sqrt(1 - ρ**2) * σ_z, ρ)
+        #mc_z = tauchen(ρ, np.sqrt(1 - ρ**2) * σ_z, n=J)
         for j in range(J):
             z_states[i, j] = mc_z.state_values[j]
             z_Q[i, j, :] = mc_z.P[j, :]
@@ -238,7 +241,7 @@ def compute_K(ssyd):
             a = np.exp(g * (μ_c + z) + 0.5 * g**2 * σ_c**2)
             K_matrix[m, mp] =  a * x_P[m, mp]
 
-    return β**θ * K_matrix
+    return K_matrix
 
 
 def test_val_spec_rad(ssy, K=default_K, I=default_I, J=default_J):
@@ -247,13 +250,13 @@ def test_val_spec_rad(ssy, K=default_K, I=default_I, J=default_J):
 
     """
     ψ, γ, β = ssy.ψ, ssy.γ, ssy.β
-    θ = (1 - γ) / (1 - 1/ψ)
 
     ssyd = discretize(ssy, K, I, J)
     K_matrix = compute_K(ssyd)
     rK = compute_spec_rad(K_matrix)
+    MC = rK**(1/ (1 - γ))
 
-    return rK**(1/θ)
+    return β * MC**(1 - 1/ψ)
 
 
 def mc_factory(ssy, 

@@ -1,4 +1,6 @@
 """
+I think this file is redundant now --- check
+
 Representations of EZ utility and Bansal--Yaron and Schorfheide, Song & Yaron
 consumption processes
 

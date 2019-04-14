@@ -1,6 +1,7 @@
 """
 
-Compute the equilibrium wealth consumption ratio in the SSY model by first computing the fixed point of A = phi K.
+Compute the equilibrium wealth consumption ratio in the SSY model by first
+computing the fixed point of A = phi K.
 
 """
 
@@ -38,7 +39,7 @@ def wealth_cons_ratio(ssyd,
 
 
     while error > tol and iter < max_iter:
-        Tw = ζ + (K_matrix @ (w**θ))**(1/θ)
+        Tw = ζ + β * (K_matrix @ (w**θ))**(1/θ)
         error = np.max(np.abs(w - Tw))
         w = Tw
         iter += 1

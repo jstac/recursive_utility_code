@@ -69,8 +69,8 @@ def jlm_compute_stat(β=0.994,
     c_params = np.array((μ_1, μ_2, σ_1, σ_2, p_11, p_22))
 
     np.random.seed(seed)
-
     yn_vals = np.empty(m)
+
     x = initial_state
     θ = (1 - γ) / (1 - 1/ψ)
 
@@ -90,9 +90,9 @@ def jlm_compute_stat(β=0.994,
         yn_vals[i] = np.exp((1-γ) * kappa_sum)
 
     mean_yns = np.mean(yn_vals)
-    Lm = β * mean_yns**(1 / (n * θ))
+    Lambda = β * mean_yns**(1 / (n * θ))
 
-    return Lm 
+    return Lambda 
 
 
 def jlm_compute_stat_discrete(β=0.994,
@@ -118,9 +118,11 @@ def jlm_compute_stat_discrete(β=0.994,
         for y in 0, 1:
             K[x, y] = np.exp(g * m[y] + 0.5 * g**2 * s[y]**2) * Q[x, y]
 
-    rK = β**θ * np.max(np.linalg.eigvals(K))
+    rK = np.max(np.linalg.eigvals(K))
+    MC = rK**(1 / (1 - γ))
 
-    return rK**(1 / θ)
+    return MC, β * MC**(1 - 1/ψ)
+
 
 @njit
 def replicate_default_sim(n=1000, m=1000, k=1000):

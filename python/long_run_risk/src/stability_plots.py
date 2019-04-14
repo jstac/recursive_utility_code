@@ -39,5 +39,7 @@ def stability_plot(R,
     ax.set_xlabel(xlb, fontsize=16)
     ax.set_ylabel(ylb, fontsize=16)
 
+    plt.savefig("temp.pdf")
+
     plt.show()
 

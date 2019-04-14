@@ -107,6 +107,8 @@ function discretize(ssy::SSYConsumption,
     ## Discretize by applying rouwenhorst to h_c and h_z
     hc_mc = tauchen(K, ρ_hc, σ_hc)
     hz_mc = tauchen(I, ρ_hz, σ_hz)
+    #hc_mc = rouwenhorst(K, ρ_hc, σ_hc, 0.0)
+    #hz_mc = rouwenhorst(I, ρ_hz, σ_hz, 0.0)
 
     σ_c_states  = ϕ_c * σ_bar * exp.(collect(hc_mc.state_values))
     σ_z_states  = ϕ_z * σ_bar * exp.(collect(hz_mc.state_values))
@@ -123,6 +125,7 @@ function discretize(ssy::SSYConsumption,
     # z_states[i, jp] when σ_z = σ_z[i].  Store it as q[i, j, jp].
     for (i, σ_z) in enumerate(σ_z_states)
         mc_z = tauchen(J, ρ, sqrt(1 - ρ^2) * σ_z) 
+        #mc_z = rouwenhorst(J, ρ, sqrt(1 - ρ^2) * σ_z, 0.0) 
         for j in 1:J
             z_states[i, j] = mc_z.state_values[j]
             for jp in 1:J
