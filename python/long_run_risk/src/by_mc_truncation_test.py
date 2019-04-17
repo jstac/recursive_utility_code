@@ -1,9 +1,9 @@
 """
-Monte Carlo based computation of the test value, SSY model, with active
+Monte Carlo based computation of the test value, BY model, with active
 truncation.
 
 Unfortunately this file replicates a huge amount of code from
-ssy_monte_carlo_test.py.  This is purely for reasons of efficiency, and the
+by_monte_carlo_test.py.  This is purely for reasons of efficiency, and the
 limits of what can and can't be done with current versions of Numba.
 
 """
@@ -11,7 +11,7 @@ limits of what can and can't be done with current versions of Numba.
 from numpy.random import randn
 from numba import jit, njit, f8, prange
 
-from ssy_model import *
+from by_model import *
 
 @njit(f8(f8))
 def truncated_randn(truncation_val):
@@ -26,44 +26,46 @@ def truncated_randn(truncation_val):
 @njit(f8[:](f8[:], f8[:], f8))
 def update_state(x, c_params, trunc_val):
 
-    μ_c, ρ, ϕ_z, σ_bar, ϕ_c, ρ_hz, σ_hz, ρ_hc, σ_hc = c_params
-    z, h_z, h_c = x
+    z, σ = x
+    μ_c, ρ, ϕ_z, v, d, ϕ_σ = c_params
 
-    # compute sigs
-    σ_z = ϕ_z * σ_bar * np.exp(h_z)
-    σ_c = ϕ_c * σ_bar * np.exp(h_c)
     # update state
-    z = ρ * z + np.sqrt(1 - ρ**2) * σ_z * truncated_randn(trunc_val)
-    h_z = ρ_hz * h_z + σ_hz * truncated_randn(trunc_val)
-    h_c = ρ_hc * h_c + σ_hc * truncated_randn(trunc_val)
+    σ2 = v * σ**2 + d + ϕ_σ * truncated_randn(trunc_val)
+    σ = np.sqrt(max(σ2, 0))
+    z = ρ * z + ϕ_z * σ * truncated_randn(trunc_val)
 
-    return np.array((z, h_z, h_c))
+    return np.array((z, σ))
 
 
-@njit(f8(f8[:], f8[:], f8[:], f8))
-def eval_kappa(x, y, c_params, trunc_val):
+
+@njit(f8(f8[:], f8[:], f8[:]))
+def eval_kappa(x, y, c_params):
     """
     Computes kappa_{t+1} given z_t and sigma_t
     """
-    μ_c, ρ, ϕ_z, σ_bar, ϕ_c, ρ_hz, σ_hz, ρ_hc, σ_hc = c_params
 
-    z, h_z, h_c = x
-    σ_c = ϕ_c * σ_bar * np.exp(h_c)
-    return μ_c + z + σ_c * randn() # truncated_randn(trunc_val)
+    μ_c, ρ, ϕ_z, v, d, ϕ_σ = c_params
+    z, σ = x
+
+    return μ_c + z + σ * randn()
 
 
-def ssy_function_factory(ssy,  parallelization_flag=False):
+def by_function_factory(by,  parallelization_flag=False):
     """
     Produces functions that compute the stability test value Lambda via 
     Monte Carlo.
 
     """
-    β, γ, ψ = ssy.β, ssy.γ, ssy.ψ 
-    μ_c, ρ, ϕ_z, σ_bar, ϕ_c = ssy.μ_c, ssy.ρ, ssy.ϕ_z, ssy.σ_bar, ssy.ϕ_c 
-    ρ_hz, σ_hz, ρ_hc, σ_hc = ssy.ρ_hz, ssy.σ_hz, ssy.ρ_hc, ssy.σ_hc 
+
+    β, γ, ψ = by.β, by.γ, by.ψ 
+    μ_c, ρ, ϕ_z, v, d, ϕ_σ = by.μ_c, by.ρ, by.ϕ_z, by.v, by.d, by.ϕ_σ  
+
+    z = 0.0
+    σ = d / (1 - v)
+    initial_state = np.array((z, σ))
 
     @njit(parallel=parallelization_flag)
-    def ssy_compute_stat_mc(initial_state=np.zeros(3), 
+    def by_compute_stat_mc(initial_state=initial_state, 
                          n=1000, 
                          m=1000,
                          seed=1234,
@@ -74,10 +76,10 @@ def ssy_function_factory(ssy,  parallelization_flag=False):
 
         """
 
-        np.random.seed(seed)
-
-        c_params = μ_c, ρ, ϕ_z, σ_bar, ϕ_c, ρ_hz, σ_hz, ρ_hc, σ_hc
+        c_params = μ_c, ρ, ϕ_z, v, d, ϕ_σ 
         c_params = np.array(c_params)
+
+        np.random.seed(seed)
 
         # Implement some burn in for the state
         x = initial_state
@@ -90,21 +92,23 @@ def ssy_function_factory(ssy,  parallelization_flag=False):
 
         for i in prange(m):
             kappa_sum = 0.0
-            x = initial_state
 
             for t in range(n):
                 y = update_state(x, c_params, trunc_val)
-                kappa_sum += eval_kappa(x, y, c_params, trunc_val)
+                kappa_sum += eval_kappa(x, y, c_params)
                 x = y
 
             yn_vals[i] = np.exp((1-γ) * kappa_sum)
 
         mean_yns = np.mean(yn_vals)
-        log_Lm = np.log(β) +  (1 / (n * θ)) * np.log(mean_yns)
+        Lm = β * mean_yns**(1 / (n * θ))
 
-        return np.exp(log_Lm)
+        return Lm 
 
-    return ssy_compute_stat_mc
+    return by_compute_stat_mc
+
+
+
 
 
 
