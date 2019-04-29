@@ -1,0 +1,16 @@
+This repository contains code for the research paper
+
+**Necessary and Sufficient Conditions for Existence and Uniqueness of Recursive Utilities**
+
+by Jaroslav Borovička and John Stachurski.
+
+The paper is available [via arXiv](https://arxiv.org/abs/1710.06526).
+
+The code is written in Python and is currently being implemented in MATLAB. This
+directory will contain the MATLAB implementation.
+
+The ssy_ files in /long_run_risk/src are currently being implemented along with
+the associated Jupyter notebooks. After that the by_ files will be implemented.
+Finally the /constant_vol and /markov_switching directories will be addressed.
+
+Please visit this repository periodically for updates.
