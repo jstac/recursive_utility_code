@@ -13,7 +13,7 @@ function update_state = compute_update_state(x, c_params)
     
     z = x
     h_z = x
-    hsc = x
+    h_c = x
     
     sigms_z = phi_z * sigma_bar * exp(h_z)
     sigma_c = phi_c * sigma_bar * exp(h_c)

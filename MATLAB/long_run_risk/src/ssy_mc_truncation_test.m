@@ -1,4 +1,4 @@
-sssy_model;
+ssy_model;
 
 function truncated_randn = compute_truncated_randn(truncation_val)
     y = randn
