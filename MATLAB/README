@@ -7,7 +7,8 @@ by Jaroslav Borovička and John Stachurski.
 The paper is available [via arXiv](https://arxiv.org/abs/1710.06526).
 
 The code is written in Python and is currently being implemented in MATLAB. This
-directory will contain the MATLAB implementation.
+directory contains the current version of the MATLAB implementation, which is still
+a work in progress.
 
 The ssy_ files in /long_run_risk/src are currently being implemented along with
 the associated Jupyter notebooks. After that the by_ files will be implemented.
