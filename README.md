@@ -7,10 +7,10 @@ by Jaroslav Borovička and John Stachurski.
 
 The paper is available [via arXiv](https://arxiv.org/abs/1710.06526).
 
-The code is written in Python and MATLAB.
+Unfortunately we only have a Python version available at this time.
 
-In the case of Python, figures and tables are reconstructed in Jupyter
-notebooks.  The whole scientific Python stack can be downloaded as a package
+Figures and tables are reconstructed in Jupyter notebooks.  The whole
+scientific Python stack can be downloaded as an integrated library via
 [here](https://www.anaconda.com/download/).  With that package installed the
 Python code should run via the Jupyter notebook application.
 
