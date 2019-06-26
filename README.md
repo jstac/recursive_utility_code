@@ -11,8 +11,8 @@ Regarding the code, unfortunately we only have a Python version available at
 this time.  Nonetheless, the code does reproduce all figures from the paper.
 
 Figures and tables are reconstructed in Jupyter notebooks.  The whole
-scientific Python stack can be downloaded as an integrated library via
-[here](https://www.anaconda.com/download/).  With that package installed the
+scientific Python stack can be downloaded as an integrated library 
+[from Anaconda](https://www.anaconda.com/download/).  With that package installed the
 Python code should run via the Jupyter notebook application.
 
 Please send feedback to john.stachurski@gmail.com.
